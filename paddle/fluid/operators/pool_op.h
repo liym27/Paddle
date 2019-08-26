@@ -71,6 +71,7 @@ class PoolKernel : public framework::OpKernel<T> {
     std::vector<int> paddings = context.Attr<std::vector<int>>("paddings");
     bool exclusive = context.Attr<bool>("exclusive");
     bool adaptive = context.Attr<bool>("adaptive");
+    // 如果有global_pooling参数，则没有padding了，ksize也和 input宽高一样
     if (context.Attr<bool>("global_pooling")) {
       for (size_t i = 0; i < ksize.size(); ++i) {
         paddings[i] = 0;
@@ -84,6 +85,7 @@ class PoolKernel : public framework::OpKernel<T> {
           paddle::operators::math::Pool2dFunctor<
               DeviceContext, paddle::operators::math::MaxPool<T>, T>
               pool2d_forward;
+          // 传入2个数，计算最大值
           paddle::operators::math::MaxPool<T> pool_process;
           pool2d_forward(dev_ctx, *in_x, ksize, strides, paddings, pool_process,
                          true, false, out);
@@ -92,6 +94,7 @@ class PoolKernel : public framework::OpKernel<T> {
           paddle::operators::math::Pool2dFunctor<
               DeviceContext, paddle::operators::math::AvgPool<T>, T>
               pool2d_forward;
+          // 传入2个数，计算平均值
           paddle::operators::math::AvgPool<T> pool_process;
           pool2d_forward(dev_ctx, *in_x, ksize, strides, paddings, pool_process,
                          exclusive, adaptive, out);
