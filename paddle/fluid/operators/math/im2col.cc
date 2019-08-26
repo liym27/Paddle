@@ -36,6 +36,7 @@ class Im2ColFunctor<paddle::operators::math::ColFormat::kCFO,
     PADDLE_ENFORCE(im.dims().size() == 3);
     PADDLE_ENFORCE(col->dims().size() == 5);
 
+    // 这一点需要改判断条件，当padding不对称的时候，需要判断4个数据
     if (stride[0] == 1 && stride[1] == 1 && dilation[0] == 1 &&
         dilation[1] == 1) {
       if (padding[0] == 0 && padding[1] == 0) {

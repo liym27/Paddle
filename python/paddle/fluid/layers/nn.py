@@ -2100,18 +2100,19 @@ def softmax(input, use_cudnn=False, name=None, axis=-1):
     return softmax_out
 
 
-def conv2d(input,
-           num_filters,
-           filter_size,
-           stride=1,
-           padding=0,
-           dilation=1,
-           groups=None,
-           param_attr=None,
-           bias_attr=None,
-           use_cudnn=True,
-           act=None,
-           name=None):
+def conv2d(
+        input,
+        num_filters,  # 滤波器数量
+        filter_size,  # 滤波器大小
+        stride=1,  # 步长
+        padding=0,  # padding大小
+        dilation=1,  # 膨胀大小？ 用来做什么 ？？ 查了：空洞
+        groups=None,  # 卷积二维层的组数 ？？
+        param_attr=None,  # 可学习参数的属性 ？？
+        bias_attr=None,  # bias属性
+        use_cudnn=True,
+        act=None,  # 激活函数
+        name=None):
     """
     The convolution2D layer calculates the output based on the input, filter
     and strides, paddings, dilations, groups parameters. Input and

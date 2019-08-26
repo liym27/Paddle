@@ -77,6 +77,7 @@ void PoolOp::InferShape(framework::InferShapeContext* ctx) const {
   if (adaptive) {
     output_shape.insert(output_shape.end(), ksize.begin(), ksize.end());
   } else {
+    // todo 重新计算输出的形状
     for (size_t i = 0; i < ksize.size(); ++i) {
       output_shape.push_back(PoolOutputSize(
           in_x_dims[i + 2], ksize[i], paddings[i], strides[i], ceil_mode));

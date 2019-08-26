@@ -73,6 +73,7 @@ void ConvOp::InferShape(framework::InferShapeContext* ctx) const {
         (in_dims[i + 2] <= 0 || filter_dims[i + 2] <= 0)) {
       output_shape.push_back(-1);
     } else {
+      // lym 需要改这里：计算output的shape
       output_shape.push_back(ConvOutputSize(in_dims[i + 2], filter_dims[i + 2],
                                             dilations[i], paddings[i],
                                             strides[i]));

@@ -47,6 +47,8 @@ inline int ConvOutputSize(int input_size, int filter_size, int dilation,
 
   return output_size;
 }
+
+//
 inline bool IsExpand(const std::vector<int64_t>& filter_dim,
                      const std::vector<int>& strides,
                      const std::vector<int>& paddings,
@@ -147,9 +149,17 @@ class GemmConvKernel : public framework::OpKernel<T> {
     // use col_shape in the im2col calculation
     // col_shape_vec: {i_c/g, k_h, k_w, o_h, o_w} or {i_c/g, k_d, k_h, k_w, o_d,
     // o_h, o_w}
+
+    // 数据维度：3D或者2
     size_t data_dim = filter_shape_vec.size() - 2;
+
+    // 如果是2d:5维的 vector； 如果3d，col_shape_vec是7维
     std::vector<int64_t> col_shape_vec(1 + 2 * data_dim);
-    col_shape_vec[0] = input->dims()[1] / groups;
+    col_shape_vec[0] =
+        input->dims()[1] / groups;  // col_shape_vec[0]是 filter的chanel
+
+    // lym col_shape_vec[1]是filter的高，[2]是宽，[3]是output的高
+    // [4]是output的宽
     for (size_t j = 0; j < data_dim; ++j) {
       col_shape_vec[j + 1] = filter_shape_vec[j + 2];
       col_shape_vec[j + 1 + data_dim] = output_shape_vec[j + 2];
@@ -162,6 +172,9 @@ class GemmConvKernel : public framework::OpKernel<T> {
     framework::DDim col_matrix_shape =
         framework::flatten_to_2d(col_shape, data_dim + 1);
 
+    // lym 如果需要padding 或者 strides 或者 dilation 或者 filter size
+    // 不是[1,1]，就返回true
+    // 需要改 ！！
     bool is_expand = IsExpand(filter_shape_vec, strides, paddings, dilations);
     Tensor col;
     // col_matrix shares the same piece of data with col,
@@ -174,13 +187,17 @@ class GemmConvKernel : public framework::OpKernel<T> {
       col_matrix.Resize(col_matrix_shape);
     }
 
+    // lym input shape是[c, h, w]，没有batch size
     framework::DDim input_shape =
         framework::slice_ddim(input->dims(), 1, input->dims().size());
 
+    //
     framework::DDim filter_matrix_shape = {filter.dims()[0],
                                            filter.numel() / filter.dims()[0]};
+    // lym filter被展开成一个矩阵
     filter.Resize(filter_matrix_shape);
 
+    // lym output_matrix_shape 是 o_c, o_h*o_w，  batch_size没了
     framework::DDim output_matrix_shape = {
         output->dims()[1],
         output->numel() / (output->dims()[0] * output->dims()[1])};
@@ -192,12 +209,15 @@ class GemmConvKernel : public framework::OpKernel<T> {
     math::Vol2ColFunctor<DeviceContext, T> vol2col;
     math::Im2ColFunctor<math::ColFormat::kCFO, DeviceContext, T> im2col;
 
-    auto blas = math::GetBlas<DeviceContext, T>(dev_ctx);
+    auto blas =
+        math::GetBlas<DeviceContext, T>(dev_ctx);  // 一个类，含有GEMM函数
     for (int i = 0; i < batch_size; i++) {
-      Tensor in_batch = input->Slice(i, i + 1).Resize(input_shape);
+      Tensor in_batch =
+          input->Slice(i, i + 1).Resize(input_shape);  // 1个batch的数据
       Tensor out_batch = output->Slice(i, i + 1).Resize(output_matrix_shape);
 
       for (int g = 0; g < groups; g++) {
+        // 计算时要用到的输入数据
         Tensor in_slice = in_batch.Slice(g * in_step, (g + 1) * in_step);
 
         if (!is_expand) {

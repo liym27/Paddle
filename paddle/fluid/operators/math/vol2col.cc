@@ -26,6 +26,7 @@ namespace math {
  *                    output_depth, output_height, output_width]
  */
 template <class T>
+// 需要改 padding
 class Vol2ColFunctor<platform::CPUDeviceContext, T> {
  public:
   void operator()(const platform::CPUDeviceContext& context,
@@ -50,6 +51,7 @@ class Vol2ColFunctor<platform::CPUDeviceContext, T> {
     int channels_col =
         input_channels * filter_depth * filter_height * filter_width;
 
+    // 需要改padding不对称时的值
     PADDLE_ENFORCE_EQ((input_depth + 2 * paddings[0] -
                        ((dilations[0] * (filter_depth - 1) + 1))) /
                               strides[0] +
@@ -75,6 +77,7 @@ class Vol2ColFunctor<platform::CPUDeviceContext, T> {
     const T* vol_data = vol.data<T>();
     T* col_data = col->data<T>();
 
+    // 不用改吧
     for (int c = 0; c < channels_col; ++c) {
       int w_offset = c % filter_width;
       int h_offset = (c / filter_width) % filter_height;

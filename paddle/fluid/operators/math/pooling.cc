@@ -42,8 +42,8 @@ class Pool2dFunctor<platform::CPUDeviceContext, PoolProcess, T> {
     const int ksize_width = ksize[1];
     const int stride_height = strides[0];
     const int stride_width = strides[1];
-    const int padding_height = paddings[0];
-    const int padding_width = paddings[1];
+    const int padding_height = paddings[0];  // paddling 在height上的长度
+    const int padding_width = paddings[1];   // paddling 在width上的长度
 
     const int input_stride = input_height * input_width;
     const int output_stride = output_height * output_width;
@@ -56,6 +56,7 @@ class Pool2dFunctor<platform::CPUDeviceContext, PoolProcess, T> {
     for (int i = 0; i < batch_size; i++) {
       for (int c = 0; c < output_channels; ++c) {
         for (int ph = 0; ph < output_height; ++ph) {
+          // 找出 height的 初始和终止 位置
           if (adaptive) {
             hstart = AdaptStartIndex(ph, input_height, output_height);
             hend = AdaptEndIndex(ph, input_height, output_height);
@@ -65,15 +66,19 @@ class Pool2dFunctor<platform::CPUDeviceContext, PoolProcess, T> {
             hstart = std::max(hstart, 0);
           }
           for (int pw = 0; pw < output_width; ++pw) {
+            // 获取 width的 初始和终止 位置
             if (adaptive) {
               wstart = AdaptStartIndex(pw, input_width, output_width);
               wend = AdaptEndIndex(pw, input_width, output_width);
             } else {
+              // 疑问：start如果超出了input的范围呢？即 ksize的值
+              // 比padding的值要小。我的解答：不会的，这样做没有意义
               wstart = pw * stride_width - padding_width;
               wend = std::min(wstart + ksize_width, input_width);
               wstart = std::max(wstart, 0);
             }
 
+            // 找出最大值 或者 平均值
             T ele = pool_process.initial();
             for (int h = hstart; h < hend; ++h) {
               for (int w = wstart; w < wend; ++w) {
@@ -84,6 +89,8 @@ class Pool2dFunctor<platform::CPUDeviceContext, PoolProcess, T> {
                                 ? (hend - hstart) * (wend - wstart)
                                 : ksize_height * ksize_width;
             pool_process.finalize(static_cast<T>(pool_size), &ele);
+
+            // 将结果写入 output_data
             output_data[ph * output_width + pw] = ele;
           }
         }

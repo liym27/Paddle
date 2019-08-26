@@ -39,7 +39,8 @@ inline void im2col_common(const framework::Tensor& im,
   int output_height = col->dims()[3];
   int output_width = col->dims()[4];
   int channels_col = im_channels * filter_height * filter_width;
-
+  // lym
+  // 暂时认为这里是不用改的，因为padding只用起始部分就可以了【如果后边出现问题，还需要重新验证】
   const T* im_data = im.data<T>();
   T* col_data = col->data<T>();
   for (int c = 0; c < channels_col; ++c) {
