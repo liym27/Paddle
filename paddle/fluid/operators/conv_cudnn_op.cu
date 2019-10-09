@@ -646,7 +646,7 @@ class CUDNNConvDoubleGradOpKernel : public framework::OpKernel<T> {
     // transform Tensors to channel first-----------
     Tensor transformed_X_channel(X->type());
     Tensor transformed_dO_channel(dO->type());
-    Tensor transformed_ddX_channel(ddX->type());
+    Tensor transformed_ddX_channel(X->type());
 
     Tensor transformed_ddO_channel(dO->type());
     Tensor transformed_dX_channel(X->type());
@@ -662,10 +662,12 @@ class CUDNNConvDoubleGradOpKernel : public framework::OpKernel<T> {
       TransToChannelFirst<platform::CUDADeviceContext, T>(
           ctx, dO, &transformed_dO_channel);
 
-      ResizeToChannelFirst<platform::CUDADeviceContext, T>(
-          ctx, ddX, &transformed_ddX_channel);
-      TransToChannelFirst<platform::CUDADeviceContext, T>(
-          ctx, ddX, &transformed_ddX_channel);
+      if (ddX) {
+        ResizeToChannelFirst<platform::CUDADeviceContext, T>(
+            ctx, ddX, &transformed_ddX_channel);
+        TransToChannelFirst<platform::CUDADeviceContext, T>(
+            ctx, ddX, &transformed_ddX_channel);
+      }
 
       if (ddO) {
         ResizeToChannelFirst<platform::CUDADeviceContext, T>(
@@ -680,7 +682,10 @@ class CUDNNConvDoubleGradOpKernel : public framework::OpKernel<T> {
     } else {
       transformed_X_channel = *X;
       transformed_dO_channel = *dO;
-      transformed_ddX_channel = *ddX;
+      if (ddX) {
+        transformed_ddX_channel = *ddX;
+      }
+
       if (ddO) {
         transformed_ddO_channel.ShareDataWith(*ddO);
       }
@@ -751,16 +756,20 @@ class CUDNNConvDoubleGradOpKernel : public framework::OpKernel<T> {
         case 4: {
           math::PadFunction<paddle::platform::CUDADeviceContext, T, 4>(
               ctx, input_pad, transformed_X_channel, pad_value, &transformed_X);
-          math::PadFunction<paddle::platform::CUDADeviceContext, T, 4>(
-              ctx, input_pad, transformed_ddX_channel, pad_value,
-              &transformed_ddX);
+          if (ddX) {
+            math::PadFunction<paddle::platform::CUDADeviceContext, T, 4>(
+                ctx, input_pad, transformed_ddX_channel, pad_value,
+                &transformed_ddX);
+          }
         } break;
         case 5: {
           math::PadFunction<paddle::platform::CUDADeviceContext, T, 5>(
               ctx, input_pad, transformed_X_channel, pad_value, &transformed_X);
-          math::PadFunction<paddle::platform::CUDADeviceContext, T, 5>(
-              ctx, input_pad, transformed_ddX_channel, pad_value,
-              &transformed_ddX);
+          if (ddX) {
+            math::PadFunction<paddle::platform::CUDADeviceContext, T, 5>(
+                ctx, input_pad, transformed_ddX_channel, pad_value,
+                &transformed_ddX);
+          }
         } break;
         default:
           PADDLE_THROW("ConvOp only support tensors with 4 or 5 dimensions.");
@@ -768,7 +777,10 @@ class CUDNNConvDoubleGradOpKernel : public framework::OpKernel<T> {
 
     } else {
       transformed_X.ShareDataWith(transformed_X_channel);
-      transformed_ddX.ShareDataWith(transformed_ddX_channel);
+      if (ddX) {
+        transformed_ddX.ShareDataWith(transformed_ddX_channel);
+      }
+
       if (dX) {
         transformed_dX.ShareDataWith(transformed_dX_channel);
       }
