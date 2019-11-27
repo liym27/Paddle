@@ -997,11 +997,11 @@ def _get_stop_gradients_(program):
     return no_grad_dict
 
 
-def append_backward(loss,
-                    parameter_list=None,
-                    no_grad_set=None,
-                    callbacks=None,
-                    checkpoints=None):
+def append_backward_old(loss,
+                        parameter_list=None,
+                        no_grad_set=None,
+                        callbacks=None,
+                        checkpoints=None):
     """
     This function appends backward part to main_program.
 
@@ -1197,11 +1197,11 @@ def append_backward(loss,
     return params_and_grads
 
 
-def append_backward_new(loss,
-                        parameter_list=None,
-                        no_grad_set=None,
-                        callbacks=None,
-                        checkpoints=None):
+def append_backward(loss,
+                    parameter_list=None,
+                    no_grad_set=None,
+                    callbacks=None,
+                    checkpoints=None):
     """
     This function appends backward part to main_program.
 
@@ -1310,9 +1310,9 @@ def append_backward_new(loss,
 
     # todo(done):
     def _get_son_parent_block_idx_dict(program, current_block_idx):
-        son_parent_block_idx_dict = {}
-        while current_block_idx > 0:
-            parent_block_idx = program.blocks(current_block_idx).parent_idx
+        son_parent_block_idx_dict = collections.OrderedDict()
+        while current_block_idx >= 0:
+            parent_block_idx = program.blocks[current_block_idx].parent_idx
             son_parent_block_idx_dict[current_block_idx] = parent_block_idx
             current_block_idx = parent_block_idx
         return son_parent_block_idx_dict
@@ -1323,7 +1323,7 @@ def append_backward_new(loss,
     # block_id: fwd_op_num
     block_fwd_op_num_dict = {}
     for idx in son_parent_block_idx_dict:
-        block_fwd_op_num_dict[idx] = program.blocks(idx).desc.op_size()
+        block_fwd_op_num_dict[idx] = program.blocks[idx].desc.op_size()
 
     grad_to_var = dict()
 
@@ -1348,7 +1348,7 @@ def append_backward_new(loss,
     no_grad_vars_dict = {}
 
     for block_idx in son_parent_block_idx_dict:
-        block = program.blocks(block_idx)
+        block = program.blocks[block_idx]
 
         block_no_grad_set = set(
             map(_strip_grad_suffix_, no_grad_dict[block_idx]))
