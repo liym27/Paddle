@@ -927,22 +927,24 @@ def _append_block_backward_vars_(block, start_op_idx, grad_to_var,
             fwd_name = _strip_grad_suffix_(grad_var_name)
             if root_block.desc.has_var(cpt.to_bytes(fwd_name)):
                 if root_block.desc.has_var(cpt.to_bytes(grad_var_name)):
-                    print("-" * 20,
-                          "no need to creat var {} in block {}".format(
-                              grad_var_name, root_block.idx))
+                    pass
+                    # print("-" * 20,
+                    #       "no need to creat var {} in block {}".format(
+                    #           grad_var_name, root_block.idx))
                 else:
-                    print("+" * 20, "need to create var {} in block {}".format(
-                        grad_var_name, root_block.idx))
+                    # print("+" * 20, "need to create var {} in block {}".format(
+                    #     grad_var_name, root_block.idx))
                     root_block.desc.var(cpt.to_bytes(
                         grad_var_name))  # todo(done): change to root_block
             else:
                 if block.desc.has_var(cpt.to_bytes(grad_var_name)):
-                    print("-" * 20,
-                          "no need to creat var {} in block {}".format(
-                              grad_var_name, block.idx))
+                    pass
+                    # print("-" * 20,
+                    #       "no need to creat var {} in block {}".format(
+                    #           grad_var_name, block.idx))
                 else:
-                    print("+" * 20, "need to create var {} in block {}".format(
-                        grad_var_name, block.idx))
+                    # print("+" * 20, "need to create var {} in block {}".format(
+                    #     grad_var_name, block.idx))
                     block.desc.var(cpt.to_bytes(
                         grad_var_name))  # todo(done): change to root_block
 
