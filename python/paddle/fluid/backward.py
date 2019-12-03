@@ -1387,7 +1387,8 @@ def append_backward(loss,
             _append_backward_ops_(
                 block,  # (done): root_block -> current_block.
                 op_path_dict[block_idx],
-                block,  # (done): root_block -> current_block.
+                # block,  # (done): root_block -> current_block.
+                loss.block,
                 no_grad_dict,
                 grad_to_var,
                 callbacks,
@@ -1398,8 +1399,10 @@ def append_backward(loss,
         # different names.
         _rename_grad_(block, block_fwd_op_num_dict[block_idx], grad_to_var, {})
 
-        _append_block_backward_vars_(block, block_fwd_op_num_dict[block_idx],
-                                     grad_to_var, grad_info_map)
+        # _append_block_backward_vars_(block, block_fwd_op_num_dict[block_idx],  grad_to_var, grad_info_map)
+    _append_block_backward_vars_(loss.block,
+                                 block_fwd_op_num_dict[current_block_idx],
+                                 grad_to_var, grad_info_map)
 
     program.current_block_idx = current_block_idx
     program._sync_with_cpp()
@@ -1422,7 +1425,9 @@ def append_backward(loss,
         # Get the param var from the global block
         param_var = program.global_block().var(param)
         grad_var = grad_block.var(grad_info[0])
-        if loss.block.has_var(grad_info[0]):
+        # if loss.block.has_var(grad_info[0]): # todo has_var -> _find_var_recursive
+        if loss.block._find_var_recursive(grad_info[
+                0]):  # todo has_var -> _find_var_recursive
             params_and_grads.append((param_var, grad_var))
         else:
             params_and_grads.append((param_var, None))
@@ -1431,7 +1436,8 @@ def append_backward(loss,
     for p, g in params_and_grads:
         if g is None:
             continue
-        for op in reversed(program.global_block().ops):
+        # for op in reversed(program.global_block().ops): # todo(done): global_block -> loss.block
+        for op in reversed(loss.block.ops):
             assert isinstance(op, framework.Operator)
             if g.name in op.output_arg_names:
                 g.op = op
