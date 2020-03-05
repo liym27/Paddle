@@ -28,7 +28,8 @@ np.random.seed(SEED)
 
 
 def dyfunc_to_variable(x):
-    res = fluid.dygraph.to_variable(x)
+    v1 = fluid.dygraph.to_variable(value=np.zeros(shape=(1), dtype=np.int32))
+    res = fluid.dygraph.to_variable(x, name=None, zero_copy=None)
     return res
 
 
@@ -64,8 +65,7 @@ class TestDygraphBasicApi_ToVariable(unittest.TestCase):
 
 
 # 1. test Apis that inherit from layers.Layer
-
-
+"""
 def dyfunc_BilinearTensorProduct(layer1, layer2):
     bilinearTensorProduct = fluid.dygraph.nn.BilinearTensorProduct(
         input1_dim=5,
@@ -420,7 +420,7 @@ class TestDygraphApiRecognition(unittest.TestCase):
     def test_dygraph_api(self):
         self.assertTrue(is_dygraph_api(self._get_dygraph_ast_node()) is True)
         self.assertTrue(is_dygraph_api(self._get_static_ast_node()) is False)
-
+"""
 
 if __name__ == '__main__':
     unittest.main()
