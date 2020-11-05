@@ -219,11 +219,12 @@ void BasicEngine::Execute() {
       for (auto& pair : bwd_ins) {
         for (auto& var_wrapper : pair.second) {
           auto wrapper_version = var_wrapper->InplaceVersion();
-          auto variable_version = var_wrapper->MutableVar()
-                                      ->InplaceVersionCounter()
-                                      .CurrentVersion();
+          auto tensor_version = var_wrapper->MutableVar()
+                                    ->GetMutable<framework::LoDTensor>()
+                                    ->InplaceVersionCounter()
+                                    .CurrentVersion();
           PADDLE_ENFORCE_EQ(
-              variable_version, wrapper_version,
+              tensor_version, wrapper_version,
               platform::errors::PermissionDenied(
                   "Tensor '%s' used in gradient computation in grad op '%s' "
                   "has been "
@@ -232,11 +233,15 @@ void BasicEngine::Execute() {
                   "Please fix your code to void calling an inplace operator "
                   "after using the Tensor which will used in gradient "
                   "computation.",
-                  var_wrapper->Name(), cur_op.Type(), variable_version,
+                  var_wrapper->Name(), cur_op.Type(), tensor_version,
                   wrapper_version));
 
           VLOG(6) << " The version of Tensor: " << var_wrapper->Name()
                   << " is [ " << wrapper_version << " ]";
+
+          VLOG(1) << " The version of var " << var_wrapper->Name()
+                  << ": tensor version [ " << tensor_version
+                  << " ], wrapper_version [ " << wrapper_version << " ]";
         }
       }
 

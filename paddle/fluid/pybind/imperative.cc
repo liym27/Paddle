@@ -632,7 +632,7 @@ void BindImperative(py::module *m_ptr) {
                return out;
              }
            })
-      .def("_inplace_version",
+      .def("git_inplace_version",
            [](imperative::VarBase &self) -> uint32_t {
              const auto &var = self.MutableVar();
              PADDLE_ENFORCE_EQ(
@@ -641,7 +641,9 @@ void BindImperative(py::module *m_ptr) {
                      "Tensor of %s is Empty, please check if it has no data.",
                      self.Name()));
 
-             return var->InplaceVersionCounter().CurrentVersion();
+             return var->GetMutable<framework::LoDTensor>()
+                 ->InplaceVersionCounter()
+                 .CurrentVersion();
            })
       .def("bump_inplace_version",
            [](std::shared_ptr<imperative::VarBase> &self) {

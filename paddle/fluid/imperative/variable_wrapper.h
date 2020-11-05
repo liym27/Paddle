@@ -135,13 +135,39 @@ class VariableWrapper {
 
   uint32_t InplaceVersion() const { return wrapper_inplace_version_; }
 
-  void SetInplaceVersion(std::shared_ptr<VariableWrapper> wrapper) {
-    auto new_version =
-        wrapper->MutableVar()->InplaceVersionCounter().CurrentVersion();
+  //  void SetInplaceVersion(std::shared_ptr<VariableWrapper> wrapper) {
+  //    auto new_version =
+  //        wrapper->MutableVar()->GetMutable<framework::LoDTensor>()->InplaceVersionCounter().CurrentVersion();
+  //    VLOG(6) << "The wrapper version of VariableWrapper '" << name_
+  //            << "' will be updated from " << wrapper_inplace_version_ << "to
+  //            "
+  //            << new_version;
+  //    wrapper_inplace_version_ = new_version;
+  //  }
+  void ResetInplaceVersion() {
+    auto new_version = var_.GetMutable<framework::LoDTensor>()
+                           ->InplaceVersionCounter()
+                           .CurrentVersion();
+
     VLOG(6) << "The wrapper version of VariableWrapper '" << name_
             << "' will be updated from " << wrapper_inplace_version_ << "to "
             << new_version;
     wrapper_inplace_version_ = new_version;
+  }
+
+  void SetFromWrapper(std::shared_ptr<VariableWrapper> old_var_wrapper) {
+    SetName(old_var_wrapper->Name());
+    SetPersistable(old_var_wrapper->Persistable());
+    SetOverridedStopGradient(old_var_wrapper->OverridedStopGradient());
+    SetType(old_var_wrapper->Type());
+    SetDataType(old_var_wrapper->DataType());
+    SetGradVar(old_var_wrapper->GetGradVar());
+    SetGradNode(old_var_wrapper->GetGradNode());
+
+    // TODO(liym27): 需要修改framework::LoDTensor
+    auto* old_tensor =
+        old_var_wrapper->MutableVar()->GetMutable<framework::LoDTensor>();
+    var_.GetMutable<framework::LoDTensor>()->ShareDataWith(*old_tensor);
   }
 
  private:
@@ -179,7 +205,7 @@ class VariableWrapper {
   int overrided_stop_gradient_{-1};
   bool persistable_{false};
 
-  uint32_t wrapper_inplace_version_ = 0;
+  uint32_t wrapper_inplace_version_{0};
 
   framework::proto::VarType::Type type_{framework::proto::VarType::LOD_TENSOR};
   framework::proto::VarType::Type data_type_{framework::proto::VarType::FP32};

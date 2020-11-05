@@ -311,12 +311,44 @@ class TracedGradOp {
   // in gradient compution.
   static std::vector<std::shared_ptr<VariableWrapper>> SnapshotVarWrapperList(
       const std::vector<std::shared_ptr<VariableWrapper>>& var_wrappers) {
+    VLOG(1) << "-------- SnapshotVarWrapperList -------- : ";
+
     std::vector<std::shared_ptr<VariableWrapper>> result;
     result.reserve(var_wrappers.size());
+
     for (auto& var : var_wrappers) {
-      std::shared_ptr<VariableWrapper> new_var(var);
-      new_var->SetInplaceVersion(var);
-      result.emplace_back(new_var);
+      VLOG(1) << "--------  var name : " << var->Name();
+
+      //        std::shared_ptr<VariableWrapper>
+      //        new_var(std::make_shared<VariableWrapper>(var->Name()));
+      //        new_var->SetFromWrapper(var);
+      //        new_var->SetInplaceVersion(var);
+      //        result.emplace_back(new_var);
+
+      if (var->MutableVar()
+              ->GetMutable<framework::LoDTensor>()
+              ->IsInitialized() == true) {
+        VLOG(1) << "-------------  IsInitialized: True";
+        std::shared_ptr<VariableWrapper> new_var(
+            std::make_shared<VariableWrapper>(var->Name()));
+        new_var->SetFromWrapper(var);
+        //            new_var->SetInplaceVersion(var);
+        new_var->ResetInplaceVersion();
+        result.emplace_back(new_var);
+
+        auto tensor_version = new_var->MutableVar()
+                                  ->GetMutable<framework::LoDTensor>()
+                                  ->InplaceVersionCounter()
+                                  .CurrentVersion();
+        auto wrapper_version = new_var->InplaceVersion();
+        VLOG(1) << " tensor version [ " << tensor_version
+                << " ], wrapper_version [ " << wrapper_version << " ]";
+
+      } else {
+        VLOG(1) << "-------------  IsInitialized: False";
+
+        result.emplace_back(var);
+      }
     }
     return result;
   }
@@ -325,6 +357,27 @@ class TracedGradOp {
   const std::shared_ptr<GradOpNode>& node_;
   OpBase* op_;
 };
+
+// std::shared_ptr<VariableWrapper>
+// ShareVariableWrapperExecptVersion(std::shared_ptr<VariableWrapper>
+// new_var_wrapper,
+//    std::shared_ptr<VariableWrapper>
+//     old_var_wrapper){
+//
+//
+////    new_var_wrapper
+////    new_var_wrapper->SetName(old_var_wrapper->Name());
+////    new_var_wrapper->SetPersistable(old_var_wrapper->Persistable());
+////
+/// new_var_wrapper->SetOverridedStopGradient(
+/// old_var_wrapper->OverridedStopGradient());
+////    new_var_wrapper->SetType(old_var_wrapper->Type());
+////    new_var_wrapper->SetDataType(old_var_wrapper->DataType());
+////
+////    new_var_wrapper->SetName(old_var_wrapper->Name());
+//
+//
+//}
 
 }  // namespace imperative
 }  // namespace paddle
