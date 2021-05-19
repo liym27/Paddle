@@ -152,6 +152,11 @@ def _getitem_impl_(var, item):
             from ..tensor import index_select
             return index_select(var, index=slice_item, axis=0)
 
+        elif isinstance(slice_item, type(None)):
+            from ..tensor import unsqueeze
+            slice_var = var[slice_item[1:]]
+            return unsqueeze(var, axis=[dim])
+
         else:
             raise IndexError(
                 "Valid index accept int or slice or ellipsis, but received {}.".
