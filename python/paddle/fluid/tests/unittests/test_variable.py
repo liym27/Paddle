@@ -15,6 +15,9 @@
 from __future__ import print_function
 
 import unittest
+
+import paddle
+paddle.enable_static()
 from paddle.fluid.framework import default_main_program, Program, convert_np_dtype_to_dtype_, in_dygraph_mode
 import paddle.fluid as fluid
 import paddle.fluid.layers as layers
@@ -161,9 +164,33 @@ class TestVariable(unittest.TestCase):
             self.assertTrue(
                 np.array_equal(local_out[15], tensor_array[::-1, ::-1, ::-1]))
 
+    def _test_slice_index_tensor(self, place):
+        data = np.random.rand(2, 3).astype("float32")
+        prog = paddle.static.Program()
+        with paddle.static.program_guard(prog):
+            x = paddle.assign(data)
+            idx = paddle.assign(np.array([1, 0]))
+            idx = [1, 0]
+            out1 = x[idx]
+            # out2 = x[0:, ...]
+            # out3 = x[..., 1:]
+            # out4 = x[...]
+
+        exe = paddle.static.Executor(place)
+        result = exe.run(prog, fetch_list=[out1, out1, out1, out1])
+
+        expected = [data[[1, 0]], data[0:, ...], data[..., 1:], data[...]]
+        print(result[0])
+        print(expected[0])
+        self.assertTrue((result[0] == expected[0]).all())
+        # self.assertTrue((result[1] == expected[1]).all())
+        # self.assertTrue((result[2] == expected[2]).all())
+        # self.assertTrue((result[3] == expected[3]).all())
+
     def test_slice(self):
         place = fluid.CPUPlace()
         self._test_slice(place)
+        self._test_slice_index_tensor(place)
 
         if core.is_compiled_with_cuda():
             self._test_slice(core.CUDAPlace(0))

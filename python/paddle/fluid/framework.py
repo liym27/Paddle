@@ -39,6 +39,7 @@ from . import unique_name
 import paddle.version as fluid_version
 import warnings
 import functools
+from .variable_index import _getitem_impl_
 
 __all__ = [
     'Program',
@@ -778,139 +779,166 @@ class ParameterMetaClass(VariableMetaClass):
             return issubclass(t, Parameter)
 
 
-def _getitem_impl_(var, item):
-    """
-    Slice the variable.
-
-    Args:
-        item(int/slice/tuple) : the index.
-
-    Returns:
-        Sliced variable
-    """
-
-    if not isinstance(item, tuple):
-        item = [item]
-
-    decrease_axes = []
-    axes = []
-    starts = []
-    ends = []
-    steps = []
-
-    use_strided_slice = False
-    reverse_axis = []
-
-    max_integer = 2**31 - 1
-    for dim, slice_item in enumerate(item):
-        if isinstance(slice_item, slice):
-            start = slice_item.start
-            end = slice_item.stop
-            step = slice_item.step
-
-            if start is None and end is None and step is None:
-                continue
-
-            step = 1 if step is None else step
-
-            if start is None and end is None:
-                assert (step == -1)
-                reverse_axis.append(dim)
-                continue
-
-            if start is None:
-                start = 0
-
-            if end is None:
-                end = max_integer
-
-        else:
-            decrease_axes.append(dim)
-            start = slice_item
-            step = 1
-            end = slice_item + 1 if slice_item != -1 else max_integer
-
-        axes.append(dim)
-        starts.append(start)
-        ends.append(end)
-        steps.append(step)
-        use_strided_slice = True if step != 1 else use_strided_slice
-
-    inputs = {'Input': [var]}
-    attrs = {
-        'axes': axes,
-        'starts': [],
-        'ends': [],
-        'decrease_axis': decrease_axes
-    }
-    if use_strided_slice == True:
-        attrs['strides'] = []
-
-    infer_flags = list(1 for i in range(len(axes)))
-    from .layers import utils
-
-    def deal_attrs(attr, attr_name, tensor_attr_name, inputs, infer_flags):
-        if utils._contain_var(attr):
-            inputs[tensor_attr_name] = utils._convert_to_tensor_list(
-                attr, dtype="int64")
-            for i, dim in enumerate(attr):
-                if isinstance(dim, Variable):
-                    attrs[attr_name].append(-1)
-                    infer_flags[i] = -1
-                else:
-                    attrs[attr_name].append(dim)
-        else:
-            attrs[attr_name] = attr
-
-    deal_attrs(starts, "starts", "StartsTensorList", inputs, infer_flags)
-    deal_attrs(ends, "ends", "EndsTensorList", inputs, infer_flags)
-    deal_attrs(steps, "strides", "StridesTensorList", inputs, infer_flags)
-
-    # infer_flags
-    attrs['infer_flags'] = infer_flags
-
-    out = var
-    target_block = default_main_program().current_block()
-    if use_strided_slice == False and len(axes) > 0:
-        # append slice_op here
-        slice_out_var = target_block.create_var(
-            name=unique_name.generate_with_ignorable_key(var.name + "_slice"),
-            dtype=var.dtype)
-
-        target_block.append_op(
-            type="slice",
-            inputs=inputs,
-            outputs={'Out': [slice_out_var]},
-            attrs=attrs)
-
-        out = slice_out_var
-    elif use_strided_slice == True and len(axes) > 0:
-        strided_slice_out_var = target_block.create_var(
-            name=unique_name.generate_with_ignorable_key(var.name +
-                                                         "_strided_slice"),
-            dtype=var.dtype)
-        target_block.append_op(
-            type="strided_slice",
-            inputs=inputs,
-            outputs={'Out': [strided_slice_out_var]},
-            attrs=attrs)
-
-        out = strided_slice_out_var
-
-    if len(reverse_axis) > 0:
-        reverse_out_var = target_block.create_var(
-            name=unique_name.generate_with_ignorable_key(var.name +
-                                                         "_slice_reverse"),
-            dtype=var.dtype)
-        target_block.append_op(
-            type="reverse",
-            inputs={'X': out},
-            outputs={'Out': [reverse_out_var]},
-            attrs={'axis': reverse_axis})
-
-        out = reverse_out_var
-
-    return out
+# def _getitem_impl_(var, item):
+#     """
+#     Slice the variable.
+#
+#     Args:
+#         item(int/slice/tuple) : the index.
+#
+#     Returns:
+#         Sliced variable
+#     """
+#
+#     if not isinstance(item, tuple):
+#         item = (item,)
+#
+#     decrease_axes = []
+#     axes = []
+#     starts = []
+#     ends = []
+#     steps = []
+#
+#     use_strided_slice = False
+#     reverse_axis = []
+#
+#     max_integer = 2**31 - 1
+#
+#
+#     def is_integer_or_scalar_tensor(ele):
+#         if isinstance(ele, int):
+#             return True
+#         elif isinstance(ele, Variable):
+#             if len(ele.shape) == 1 and ele.shape[0] == 1:
+#                 return True
+#         return False
+#
+#     for dim, slice_item in enumerate(item):
+#         if is_integer_or_scalar_tensor(slice_item):
+#             decrease_axes.append(dim)
+#             start = slice_item
+#             step = 1
+#             end = slice_item + 1 if slice_item != -1 else max_integer
+#
+#         elif isinstance(slice_item, slice):
+#             start = slice_item.start
+#             end = slice_item.stop
+#             step = slice_item.step
+#
+#             if start is None and end is None and step is None:
+#                 continue
+#
+#             step = 1 if step is None else step
+#
+#             if start is None and end is None:
+#                 assert (step == -1)
+#                 reverse_axis.append(dim)
+#                 continue
+#
+#             if start is None:
+#                 start = 0
+#
+#             if end is None:
+#                 end = max_integer
+#
+#         elif isinstance(slice_item, Variable):
+#
+#             def check_item(item):
+#                 if len(item) != 1:
+#                     raise IndexError("When index is a list, its length must be 1, but received {}".format(len(item)))
+#
+#             check_item(item)
+#             from ..tensor import index_select
+#             return index_select(var,index=slice_item, axis=0)
+#
+#
+#         elif isinstance(slice_item, list):
+#             # TODO(liym27): polish message
+#             def check_slice_item(slice_item):
+#                 # 1. type
+#                 for i in slice_item:
+#                     if not isinstance(i, int):
+#                         raise IndexError("Only support int value in list")
+#
+#                 # 2. length
+#
+#             def check_item(item):
+#                 if len(item) != 1:
+#                     raise IndexError("When index contains a list, its length must be 1, but received {}".format(len(item)))
+#
+#             check_item(item)
+#             check_slice_item(slice_item)
+#
+#             from .layers import assign
+#             idx = assign(np.array(slice_item))
+#             from ..tensor import index_select
+#             return index_select(var,index=idx, axis=0)
+#
+#
+#         else:
+#             # isinstance(slice_item, None)
+#
+#             raise IndexError("Valid index accept int or slice or ellipsis, but received {}.".format(slice_item))
+#
+#         axes.append(dim)
+#         starts.append(start)
+#         ends.append(end)
+#         steps.append(step)
+#         use_strided_slice = True if step != 1 else use_strided_slice
+#
+#     inputs = {'Input': [var]}
+#     attrs = {
+#         'axes': axes,
+#         'starts': [],
+#         'ends': [],
+#         'decrease_axis': decrease_axes
+#     }
+#     if use_strided_slice == True:
+#         attrs['strides'] = []
+#
+#     infer_flags = list(1 for i in range(len(axes)))
+#     from .layers import utils
+#
+#     def deal_attrs(attr, attr_name, tensor_attr_name, inputs, infer_flags):
+#         if utils._contain_var(attr):
+#             inputs[tensor_attr_name] = utils._convert_to_tensor_list(
+#                 attr, dtype="int64")
+#             for i, dim in enumerate(attr):
+#                 if isinstance(dim, Variable):
+#                     attrs[attr_name].append(-1)
+#                     infer_flags[i] = -1
+#                 else:
+#                     attrs[attr_name].append(dim)
+#         else:
+#             attrs[attr_name] = attr
+#
+#     deal_attrs(starts, "starts", "StartsTensorList", inputs, infer_flags)
+#     deal_attrs(ends, "ends", "EndsTensorList", inputs, infer_flags)
+#     deal_attrs(steps, "strides", "StridesTensorList", inputs, infer_flags)
+#
+#     # infer_flags
+#     attrs['infer_flags'] = infer_flags
+#
+#     out = var
+#     if len(axes):
+#         target_block = default_main_program().current_block()
+#         op_type = "strided_slice" if use_strided_slice else "slice"
+#
+#         slice_out_var = target_block.create_var(
+#             name=unique_name.generate_with_ignorable_key(var.name + "_" + op_type),
+#             dtype=var.dtype)
+#         target_block.append_op(
+#             type=op_type,
+#             inputs=inputs,
+#             outputs={'Out': [slice_out_var]},
+#             attrs=attrs)
+#         out = slice_out_var
+#
+#     if len(reverse_axis) > 0:
+#         from .layers.tensor import reverse
+#         out = reverse(out, axis=reverse_axis)
+#
+#     return out
 
 
 @six.add_metaclass(VariableMetaClass)

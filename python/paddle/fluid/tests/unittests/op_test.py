@@ -33,13 +33,13 @@ from paddle.fluid.backward import append_backward
 from paddle.fluid.op import Operator
 from paddle.fluid.executor import Executor
 from paddle.fluid.framework import Program, OpProtoHolder, Variable
-from paddle.fluid.tests.unittests.testsuite import (
+from testsuite import (
     create_op,
     set_input,
     append_input_output,
     append_loss_ops, )
 from paddle.fluid import unique_name
-from paddle.fluid.tests.unittests.white_list import (
+from white_list import (
     op_accuracy_white_list,
     check_shape_white_list,
     compile_vs_runtime_white_list,
@@ -266,7 +266,7 @@ class OpTest(unittest.TestCase):
         np.random.seed(123)
         random.seed(124)
 
-        if paddle.is_compiled_with_npu():
+        if False:
             cls._use_system_allocator = _set_use_system_allocator(False)
         else:
             cls._use_system_allocator = _set_use_system_allocator(True)
@@ -1231,8 +1231,7 @@ class OpTest(unittest.TestCase):
         # Check inplace for given op, its grad op, its grad_grad op, etc.
         # No effect on original OpTest
         # Currently not support ParallelExecutor on XPUPlace.
-        if not paddle.is_compiled_with_xpu(
-        ) and not paddle.is_compiled_with_npu():
+        if not paddle.is_compiled_with_xpu() and not False:
             self.check_inplace_output_with_place(
                 place, no_check_set=no_check_set, inplace_atol=inplace_atol)
 
